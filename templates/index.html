@@ -1,0 +1,129 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>A-Share Stock Data</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <style>
+        #tableContainer {
+            max-height: 800px;
+            overflow-y: auto;
+        }
+        #stockTable {
+            width: 100%;
+            border-collapse: collapse;
+        }
+        #stockTable thead th {
+            position: sticky;
+            top: 0;
+            background-color: #0b317e;
+            z-index: 10;
+            box-shadow: 0 2px 2px -1px rgba(0, 0, 0, 0.1);
+        }
+        #stockTable th, #stockTable td {
+            min-width: 100px;
+            text-align: center;
+        }
+        .sort-btn.active {
+            font-weight: bold;
+            color: #1e40af;
+        }
+    </style>
+</head>
+<body class="bg-gray-100 font-sans">
+    <div class="container mx-auto p-4">
+        <h1 class="text-2xl font-bold mb-4 text-center">A股数据分析</h1>
+        <div class="mb-4">
+            <!-- 外层 flex，左右分开 -->
+            <div class="flex justify-between items-center flex-wrap space-y-2">
+                <!-- 左边：输入控件 -->
+                <div class="flex items-center space-x-2 flex-wrap">
+                    <input type="text" id="stockCode" placeholder="例如 600519" class="p-2 border rounded w-32">
+                    <input type="text" id="startDate" placeholder="起始日期 YYYYMMDD" class="p-2 border rounded w-32">
+                    <input type="text" id="endDate" placeholder="结束日期 YYYYMMDD" class="p-2 border rounded w-32">
+                    <select id="sortColumn" class="p-2 border rounded w-32">
+                        <option value="换手率" selected>换手率</option>
+                        <option value="涨跌幅">涨跌幅</option>
+                    </select>
+                    <select id="sortOrder" class="p-2 border rounded w-32">
+                        <option value="desc" selected>降序 (前 50)</option>
+                        <option value="asc">升序 (前 50)</option>
+                    </select>
+                    <button id="fetchData" class="bg-red-500 text-white p-2 rounded hover:bg-blue-600 whitespace-nowrap">查询数据</button>
+                    <div id="stockName" class="text-xl text-gray-700 font-bold"></div>
+                    <div id="dataInfo" class="text-xl text-gray-700 font-bold"></div>
+                </div>
+                <!-- 右边：marketCapInfo -->
+                <div id="marketCapInfo" class="text-gray-700 font-bold text-right"></div>
+            </div>
+            <div>
+                <span class="text-red-800 text-base whitespace-nowrap">* 请输入有效的日期格式</span>
+            </div>
+            <div id="financialContainer" class="overflow-x-auto mt-6 hidden">
+                <!-- 标题行：flex布局 -->
+                <div class="flex justify-between items-center mb-4">
+                    <h2 class="text-2xl text-gray-700 font-bold">财务报告：</h2>
+                    <div id="financialExtra" class="text-gray-600 font-bold">
+                        <span></span>
+                        <span></span>
+                    </div>
+                </div>
+                <!-- 表格 -->
+                <table id="financialTable" class="min-w-full bg-white border">
+                    <thead>
+                        <tr class="bg-gray-200" id="financialHeader"></tr>
+                    </thead>
+                    <tbody id="financialBody"></tbody>
+                </table>
+            </div>
+        </div>
+        
+        <div id="tableContainer" class="overflow-x-auto">
+            <table id="stockTable" class="min-w-full bg-white border hidden">
+                <thead>
+                    <tr class="bg-gray-200 text-white">
+                        <th class="p-2 border relative">
+                            日期
+                            <button class="sort-btn text-blue-500 hover:text-blue-700 ml-1" data-column="日期" data-order="asc">↑</button>
+                            <button class="sort-btn text-blue-500 hover:text-blue-700 ml-1" data-column="日期" data-order="desc">↓</button>
+                        </th>
+                        <th class="p-2 border">
+                            开盘
+                        </th>
+                        <th class="p-2 border">
+                            收盘
+                        </th>
+                        <th class="p-2 border relative">
+                            最高
+                        </th>
+                        <th class="p-2 border relative">
+                            最低
+                        </th>
+                        <th class="p-2 border relative">
+                            涨跌幅 (%)
+                            <button class="sort-btn text-blue-500 hover:text-blue-700 ml-1" data-column="涨跌幅" data-order="asc">↑</button>
+                            <button class="sort-btn text-blue-500 hover:text-blue-700 ml-1" data-column="涨跌幅" data-order="desc">↓</button>
+                        </th>
+                        <th class="p-2 border relative">
+                            成交量
+                        </th>
+                        <th class="p-2 border relative">
+                            换手率 (%)
+                            <button class="sort-btn text-blue-500 hover:text-blue-700 ml-1" data-column="换手率" data-order="asc">↑</button>
+                            <button class="sort-btn text-blue-500 hover:text-blue-700 ml-1" data-column="换手率" data-order="desc">↓</button>
+                        </th>
+                        <th class="p-2 border relative">
+                            市值（亿）
+                            <button class="sort-btn text-blue-500 hover:text-blue-700 ml-1" data-column="市值（亿）" data-order="asc">↑</button>
+                            <button class="sort-btn text-blue-500 hover:text-blue-700 ml-1" data-column="市值（亿）" data-order="desc">↓</button>
+                        </th>
+                    </tr>
+                </thead>
+                <tbody id="tableBody"></tbody>
+            </table>
+        </div>
+    </div>
+    <script src="static/script.js"></script>
+</body>
+</html>
