@@ -7,6 +7,9 @@ from flask_cors import CORS
 from datetime import datetime
 import logging
 import webbrowser
+import matplotlib.pyplot as plt
+import io
+import base64
 
 app = Flask(__name__)
 CORS(app, resources={r"/get_*": {"origins": ["http://localhost:5000"]}})
@@ -83,7 +86,46 @@ def fetch_financial_report(stock_code):
 
     return available_columns, data
 
+def generate_turnover_histogram(df, stock_name):
+    # 提取换手率并去除非正值
+    turnover = df["换手率"].dropna()
+    turnover = turnover[turnover > 0]
+    if turnover.empty:
+        app.logger.warning(f"股票 {stock_name} 无有效换手率数据")
+        return None
 
+    # 计算对数换手率
+    log_turnover = np.log(turnover)
+    mu = log_turnover.mean()
+    sigma = log_turnover.std()
+    std_lines = [mu - 2*sigma, mu - sigma, mu, mu + sigma, mu + 2*sigma]
+    real_turnover_values = np.exp(std_lines).round(2)
+
+    # 设置中文字体
+    plt.rcParams['font.sans-serif'] = ['SimHei']
+    plt.rcParams['axes.unicode_minus'] = False
+
+    # 绘图
+    plt.figure(figsize=(12, 6))
+    plt.hist(log_turnover, bins=30, density=False, alpha=0.7, color='skyblue', edgecolor='black')
+    for i, (x, r) in enumerate(zip(std_lines, real_turnover_values)):
+        plt.axvline(x=x, color='green', linestyle='--', linewidth=1)
+        label = f"ln(x)={x:.2f}\n换手率≈{r:.2f}%"
+        plt.text(x, plt.ylim()[1]*0.8, label, rotation=90, verticalalignment='top', color='green', fontsize=9)
+    plt.title(f"{stock_name} 对数换手率的频数直方图", fontsize=14)
+    plt.xlabel("对数换手率 ln(换手率)", fontsize=12)
+    plt.ylabel("出现次数", fontsize=12)
+    plt.grid(True)
+    plt.tight_layout()
+
+    # 将图表保存到内存并转换为 Base64
+    buffer = io.BytesIO()
+    plt.savefig(buffer, format='png')
+    buffer.seek(0)
+    image_base64 = base64.b64encode(buffer.getvalue()).decode('utf-8')
+    plt.close()  # 关闭图表以释放内存
+
+    return image_base64
 
 @app.route('/get_stock_data')
 def get_stock_data_route():
@@ -107,6 +149,7 @@ def get_stock_data_route():
         df, stock_name, filtered_dict, current_price = fetch_stock_data(symbol, start_date, end_date)
         # 调用 process_stock_data 使用 df 进行处理
         max_market_cap, min_market_cap, select_columns = process_stock_data(df, sort_column, sort_order)
+        histogram_image = generate_turnover_histogram(df, stock_name)  # 生成直方图
 
         response = {
             'shape': list(df.shape),
@@ -115,13 +158,13 @@ def get_stock_data_route():
             'max_market_cap': max_market_cap,
             'min_market_cap': min_market_cap,
             'filtered_dict':filtered_dict,
-            'current_price':current_price
+            'current_price':current_price,
+            'histogram_image': histogram_image
         }
         return jsonify(response)
     except Exception as e:
         app.logger.error(f"错误: {str(e)}")
         return jsonify({'error': str(e)}), 500
-
 
 # 清除已有端点，防止重复注册
 app.view_functions.pop('get_financial_report', None)

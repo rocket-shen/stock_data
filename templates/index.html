@@ -29,6 +29,14 @@
             font-weight: bold;
             color: #1e40af;
         }
+        #histogramContainer {
+            width: 100%; /* 与 financialContainer 宽度一致 */
+        }
+        #histogramImage {
+            width: 100%; /* 图像填满容器宽度 */
+            max-width: 100%; /* 防止溢出 */
+            height: auto; /* 保持比例 */
+        }
     </style>
 </head>
 <body class="bg-gray-100 font-sans">
@@ -77,8 +85,11 @@
                     <tbody id="financialBody"></tbody>
                 </table>
             </div>
+            <div id="histogramContainer" class="mt-4 hidden">
+                <img id="histogramImage" src="" alt="对数换手率直方图" class="mx-auto">
+            </div>
         </div>
-        
+        <h1 id="tableTitle" class="text-2xl text-red-500 font-bold mb-4 text-center"></h1>
         <div id="tableContainer" class="overflow-x-auto">
             <table id="stockTable" class="min-w-full bg-white border hidden">
                 <thead>

@@ -62,7 +62,18 @@ async function fetchStockData() {
         `;
         document.getElementById('financialExtra').innerHTML=`<span class="text-red-500">股本：${formatNumber(data.filtered_dict['总股本'])}亿&nbsp;&nbsp;流通股本：${formatNumber(data.filtered_dict['流通股'])}亿</span><br>
         <span class="text-red-500">市值：${formatNumber(data.filtered_dict['总市值'])}亿&nbsp;&nbsp;&nbsp;现价：${formatNumber(data.current_price)}元</span>`;
-
+        // 更新 tableTitle 内容
+        const h1Content = `${startDate} 至 ${endDate} ${sortColumn} 交易数据`;
+        document.getElementById('tableTitle').textContent = h1Content;
+        // 显示直方图
+        const histogramContainer = document.getElementById('histogramContainer');
+        const histogramImage = document.getElementById('histogramImage');
+        if (data.histogram_image) {
+            histogramImage.src = `data:image/png;base64,${data.histogram_image}`;
+            histogramContainer.classList.remove('hidden');
+        } else {
+            histogramContainer.classList.add('hidden');
+        }
         applyFilters();
         document.getElementById('stockTable').classList.remove('hidden');
 
