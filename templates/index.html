@@ -37,6 +37,9 @@
             max-width: 100%; /* 防止溢出 */
             height: auto; /* 保持比例 */
         }
+        #filterResultTable {
+            display: table;
+        }
     </style>
 </head>
 <body class="bg-gray-100 font-sans">
@@ -132,6 +135,30 @@
                     </tr>
                 </thead>
                 <tbody id="tableBody"></tbody>
+            </table>
+        </div>
+        <!-- 股票筛选功能 -->
+        <div class="mb-4">
+            <h1 class="text-xl font-bold mb-2 text-center">股票筛选</h1>
+            <div class="flex justify-between items-center flex-wrap space-y-2">
+                <div class="flex items-center space-x-2 flex-wrap">
+                    <input type="number" id="roe" placeholder="净资产收益率 (%)" class="p-2 border rounded w-32" step="0.01">
+                    <input type="number" id="grossMargin" placeholder="销售毛利率 (%)" class="p-2 border rounded w-32" step="0.01">
+                    <input type="number" id="netProfit" placeholder="净利润 (亿元)" class="p-2 border rounded w-32" step="0.01">
+                    <button id="filterStocks" class="bg-green-500 text-white p-2 rounded hover:bg-green-600 whitespace-nowrap">筛选股票</button>
+                </div>
+            </div>
+            <div class="text-red-800 text-base whitespace-nowrap mt-2">* 请输入有效的筛选条件</div>
+        </div>
+
+        <!-- 筛选结果表格 -->
+        <div id="filterResultContainer" class="overflow-x-auto mt-6 hidden">
+            <h1 class="text-xl text-gray-700 font-bold mb-4 text-center">筛选结果</h1>
+            <table id="filterResultTable" class="min-w-full bg-white border">
+                <thead>
+                    <tr class="bg-gray-200 text-white" id="filterResultHeader"></tr>
+                </thead>
+                <tbody id="filterResultBody"></tbody>
             </table>
         </div>
     </div>

@@ -165,12 +165,10 @@ document.querySelectorAll('.sort-btn').forEach(button => {
 
 document.getElementById('sortColumn').addEventListener('change', () => {});
 document.getElementById('sortOrder').addEventListener('change', () => {});
-
 document.getElementById('fetchData').addEventListener('click', () => {
     console.log('查询数据按钮被点击');
     fetchStockData();
 });
-
 document.getElementById('stockCode').addEventListener('keydown', (event) => {
     if (event.key === 'Enter' || event.keyCode === 13) {
         console.log('回车触发查询');
@@ -192,3 +190,78 @@ function applyFilters() {
     });
     renderTable(filteredData);
 }
+
+document.getElementById('filterStocks').addEventListener('click', async () => {
+    const roe = parseFloat(document.getElementById('roe').value);
+    const grossMargin = parseFloat(document.getElementById('grossMargin').value);
+    const netProfit = parseFloat(document.getElementById('netProfit').value) * 100000000; // 转换为亿元
+
+    // 验证输入
+    if (isNaN(roe) || isNaN(grossMargin) || isNaN(netProfit)) {
+        alert('请输入有效的筛选条件！');
+        return;
+    }
+
+    try {
+        // 发送 AJAX 请求到新路由 /get_filtered_stocks
+        const response = await fetch('/get_filtered_stocks', {
+            method: 'POST',
+            headers: {'Content-Type': 'application/json',},
+            body: JSON.stringify({roe: roe, gross_margin: grossMargin, net_profit: netProfit}),
+        });
+
+        if (!response.ok){
+            const errorText = await response.text();
+            throw new Error(`服务器返回错误: ${response.status} ${errorText}`);
+        }
+
+        const data = await response.json();
+        console.log('筛选数据:', data); // 调试：输出响应数据
+        if (data.error) {showError('筛选失败：' + data.error); return;}
+        // 验证数据格式
+
+        if (!data.columns || !Array.isArray(data.columns) || !data.data || !Array.isArray(data.data)) {
+            throw new Error('无效的响应数据格式');
+        }
+        // 显示筛选结果表格
+        const filterResultContainer = document.getElementById('filterResultContainer');
+        const filterResultHeader = document.getElementById('filterResultHeader');
+        const filterResultBody = document.getElementById('filterResultBody');
+
+        // 确认 DOM 元素存在
+        if (!filterResultContainer || !filterResultHeader || !filterResultBody) {
+            throw new Error('无法找到筛选结果的 DOM 元素');
+        }
+
+        // 渲染表头
+        filterResultHeader.innerHTML = data.columns.map(col => `
+            <th class="p-2 border">${col}</th>
+        `).join('');
+
+        // 定义需要格式化的数值列
+        const numericColumns = [
+            '每股收益', '营业总收入-营业总收入', '营业总收入-同比增长', '营业总收入-季度环比增长',
+            '净利润-净利润', '净利润-同比增长', '净利润-季度环比增长', '每股净资产',
+            '净资产收益率', '每股经营现金流量', '销售毛利率'
+        ];
+
+        // 渲染表格内容
+        filterResultBody.innerHTML = data.data.map((row, rowIndex) => {
+            console.log(`渲染行 ${rowIndex}:`, row); // 调试：输出每行
+            return `
+                <tr>
+                    ${data.columns.map(col => `
+                        <td class="p-2 border">
+                            ${numericColumns.includes(col) ? formatNumber(row[col]) : (row[col] ?? '-')}
+                        </td>
+                    `).join('')}
+                </tr>
+            `;
+        }).join('');
+
+        filterResultContainer.classList.remove('hidden');
+    } catch (error) {
+        console.error('筛选请求失败:', error);
+        showError('筛选请求失败: ' + error.message);
+    }
+});

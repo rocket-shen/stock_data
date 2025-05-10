@@ -11,7 +11,9 @@ import numpy as np
 from flask_cors import CORS
 from datetime import datetime
 import logging
+import json
 import webbrowser
+import glob
 
 
 app = Flask(__name__)
@@ -135,8 +137,79 @@ def generate_turnover_histogram(df, stock_name):
         app.logger.error(f"生成直方图失败: {str(e)}")
         return None
 
+def filter_stocks(roe, gross_margin, net_profit):
+    """
+    根据净资产收益率、销售毛利率和净利润筛选股票，返回筛选结果。
+
+    参数:
+        roe (float): 净资产收益率（%）
+        gross_margin (float): 销售毛利率（%）
+        net_profit (float): 净利润（元）
+
+    返回:
+        dict: 包含 columns（列名列表）和 data（数据列表）
+    """
+    try:
+        # 获取所有业绩报表文件
+        file_names = glob.glob(os.path.join(SAVE_DIRECTORY, '业绩报表_*.csv'))
+        if not file_names:
+            app.logger.error(f"未找到业绩报表文件: {SAVE_DIRECTORY}")
+            raise FileNotFoundError(f"未找到业绩报表文件: {SAVE_DIRECTORY}")
+
+        filtered_sets = []
+        for file_name in file_names:
+            # 读取 CSV 文件
+            df = pd.read_csv(file_name, encoding='utf-8-sig', dtype={'股票代码': str})
+            # 筛选符合条件的数据
+            filtered_df = df[
+                (df['净资产收益率'] >= roe) &
+                (df['销售毛利率'] >= gross_margin) &
+                (df['净利润-净利润'] > net_profit)
+                ]
+            # 选择从 '股票代码' 到 '所处行业' 的列
+            all_columns = df.columns.tolist()
+            selected_columns = all_columns[1:-1]  # 排除第0列('序号')和最后1列('最新公告日期')
+            filtered_stock = filtered_df[selected_columns]
+            filtered_sets.append(filtered_stock)
+
+        if not filtered_sets:
+            app.logger.warning("没有股票满足筛选条件")
+            return {'columns': [], 'data': []}
+
+        # 使用股票代码作为索引，找出共同出现的股票
+        sets_of_codes = [set(df['股票代码']) for df in filtered_sets]
+        common_codes = set.intersection(*sets_of_codes)
+        # 合并所有筛选结果并去重
+        merged = pd.concat(filtered_sets).drop_duplicates(subset=['股票代码'])
+        # 筛选出共同出现的股票
+        final_result = merged[merged['股票代码'].isin(common_codes)]
+        # 替换所有NaN/NaT为None
+        final_result = final_result.replace([np.nan, pd.NA], None)
+
+        # 转换为字典格式
+        data = final_result.to_dict('records')
+
+        # 再次确保所有值都可序列化
+        for record in data:
+            for key, value in record.items():
+                if pd.isna(value) or value is pd.NA:
+                    record[key] = None
+
+        # 转换为前端需要的格式
+        result = {
+            'columns': final_result.columns.tolist(),
+            'data': final_result.apply(lambda x: x.where(pd.notnull(x), None)).to_dict('records')
+        }
+        app.logger.info(f"筛选结果: {len(final_result)} 条记录")
+        app.logger.debug(f"筛选结果前2条: {result['data'][:2]}")
+        return result
+
+    except Exception as e:
+        app.logger.error(f"筛选股票失败: {str(e)}")
+        raise Exception(f"筛选股票失败: {str(e)}")
+
 @app.route('/get_stock_data')
-def get_stock_data_route():
+def get_stock_data():
     try:
         symbol = request.args.get('symbol').strip()
         start_date = request.args.get('start_date')
@@ -188,7 +261,32 @@ def get_financial_report():
         app.logger.error(f"获取财务报表失败: {str(e)}")
         return jsonify({'error': str(e)}), 404
 
-    
+@app.route('/get_filtered_stocks', methods=['POST'])
+def api_filter_stocks():
+    try:
+        # 获取前端传递的筛选条件
+        data = request.get_json()
+        roe = float(data['roe'])
+        gross_margin = float(data['gross_margin'])
+        net_profit = float(data['net_profit'])
+
+        app.logger.info(f"筛选股票: roe={roe}, gross_margin={gross_margin}, net_profit={net_profit}")
+
+        # 调用 filter_stocks 函数
+        result = filter_stocks(roe, gross_margin, net_profit)
+
+        return jsonify(result), 200, {'Content-Type': 'application/json; charset=utf-8'}
+
+    except KeyError as e:
+        app.logger.error(f"缺少必要参数: {str(e)}")
+        return jsonify({'error': f"缺少必要参数: {str(e)}"}), 400
+    except ValueError as e:
+        app.logger.error(f"参数格式错误: {str(e)}")
+        return jsonify({'error': f"参数格式错误: {str(e)}"}), 400
+    except Exception as e:
+        app.logger.error(f"筛选股票失败: {str(e)}")
+        return jsonify({'error': str(e)}), 500
+
 # 在应用启动时调用初始化
 check_financial_directory()
 
